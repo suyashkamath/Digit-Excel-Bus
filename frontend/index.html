@@ -1,0 +1,993 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BUS Insurance Policy Processing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div class="sidebar">
+        <h2 class="text-2xl font-bold mb-6">🚌 BUS Processor</h2>
+        <div class="space-y-4">
+            <div>
+                <label for="company-name" class="block text-sm font-medium mb-1">Company Name</label>
+                <input type="text" id="company-name" value="Digit" class="w-full p-2 rounded bg-blue-800 text-white border border-blue-700 outline-none">
+            </div>
+            
+            <div>
+                <label for="policy-file" class="block text-sm font-medium mb-1">📄 Upload BUS Excel</label>
+                <input type="file" id="policy-file" accept=".xlsx,.xls" class="w-full text-xs p-2 rounded bg-blue-800 text-white border border-blue-700 cursor-pointer">
+            </div>
+
+            <div id="sheet-selection-container" class="hidden">
+                <label for="sheet-selector" class="block text-sm font-medium mb-1 text-blue-200">Select Worksheet</label>
+                <select id="sheet-selector" class="w-full p-2 rounded bg-blue-900 text-white border border-blue-700 outline-none focus:ring-2 focus:ring-blue-400">
+                    </select>
+                <p class="text-[10px] mt-1 text-blue-300">Multiple sheets detected. Please pick one.</p>
+            </div>
+            
+            <div class="bg-blue-900/50 p-3 rounded-lg border border-blue-700">
+                <p class="text-xs font-bold mb-2 text-blue-200">🤖 BUS LOGIC ENABLED</p>
+                <ul class="text-xs space-y-1 text-blue-100">
+                    <li>✅ School Bus Formats</li>
+                    <li>✅ Staff Bus Formats</li>
+                    <li>✅ Seating Capacity Detection</li>
+                </ul>
+            </div>
+            
+            <button id="process-button" class="w-full bg-orange-500 text-white font-bold py-3 rounded-lg hover:bg-orange-600 transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed" disabled>
+                🚀 Process Selected Sheet
+            </button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <header class="mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900">BUS Insurance Policy Processing</h1>
+            <p class="text-gray-500">Extracting school and staff bus payouts with seating capacity logic</p>
+        </header>
+
+        <div id="initial-message" class="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
+            <h3 class="text-xl font-semibold mb-2">👋 Ready to Process</h3>
+            <p class="text-gray-600">Upload your Bus grid file. The system will detect available worksheets for you to choose from.</p>
+        </div>
+
+        <div id="processing-spinner" class="spinner-container hidden">
+            <div class="spinner"></div>
+            <p class="text-center mt-4 font-medium animate-pulse">Scanning sheets and calculating bus payouts...</p>
+        </div>
+
+        <div id="error-message" class="error-message hidden"></div>
+        <div id="success-message" class="success-message hidden"></div>
+
+        <div id="results-container" class="hidden space-y-6">
+            <nav class="flex space-x-2 border-b border-gray-200 pb-px">
+                <button class="tab-button active" data-tab="tab1">📊 Payout Analysis</button>
+                <button class="tab-button" data-tab="tab3">🧾 JSON Preview</button>
+                <button class="tab-button" data-tab="tab5">📥 Download</button>
+            </nav>
+
+            <div id="tab1" class="tab active">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="stat-card">
+                        <span class="text-gray-500 text-xs uppercase">Total Policies</span>
+                        <p id="total-records" class="text-2xl font-bold text-orange-600">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <span class="text-gray-500 text-xs uppercase">Avg Payin</span>
+                        <p id="avg-payin" class="text-2xl font-bold text-green-600">0.0%</p>
+                    </div>
+                    <div class="stat-card">
+                        <span class="text-gray-500 text-xs uppercase">Sheet Used</span>
+                        <p id="sheet-name-display" class="text-xl font-bold text-blue-600 truncate">None</p>
+                    </div>
+                    <div class="stat-card">
+                        <span class="text-gray-500 text-xs uppercase">LOB</span>
+                        <p class="text-xl font-bold">BUS</p>
+                    </div>
+                </div>
+
+                <div class="table-container shadow-inner border border-gray-200 rounded-lg bg-white">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-100 sticky top-0">
+                            <tr>
+                                <th class="p-3 border-b">State</th>
+                                <th class="p-3 border-b">Location/RTO</th>
+                                <th class="p-3 border-b">Original Segment</th>
+                                <th class="p-3 border-b">Payin</th>
+                                <th class="p-3 border-b">Payout</th>
+                                <th class="p-3 border-b">Formula</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table-body" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab3" class="tab">
+                <pre id="parsed-data" class="bg-gray-900 text-green-400 p-6 rounded-xl overflow-auto max-h-[500px] text-xs"></pre>
+            </div>
+
+            <div id="tab5" class="tab">
+                <div class="bg-white p-10 rounded-xl border border-dashed border-gray-300 text-center">
+                    <h2 class="text-2xl font-bold mb-6">Export Processed Data</h2>
+                    <div class="flex flex-wrap justify-center gap-4">
+                        <button id="download-excel" class="download-btn bg-green-600">Excel (.xlsx)</button>
+                        <button id="download-csv" class="download-btn bg-blue-600">CSV (.csv)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
+
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIGIT Multi-LOB Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .lob-badges {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .lob-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .step {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 5px solid #4facfe;
+        }
+
+        .step h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .upload-area {
+            border: 3px dashed #4facfe;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #00f2fe;
+            background: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #00f2fe;
+            background: #e3f5ff;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            color: #4facfe;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 172, 254, 0.6);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.4);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 6px 20px rgba(108, 117, 125, 0.6);
+        }
+
+        .sheet-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .sheet-item {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sheet-item:hover {
+            border-color: #4facfe;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.2);
+        }
+
+        .sheet-item.selected {
+            border-color: #4facfe;
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+        }
+
+        .sheet-item h3 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+
+        .sheet-type-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin-top: 8px;
+        }
+
+        .badge-bus {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .badge-tw {
+            background: #f093fb;
+            color: #fff;
+        }
+
+        .badge-taxi {
+            background: #28a745;
+            color: #fff;
+        }
+
+        .badge-4w_satp {
+            background: #667eea;
+            color: #fff;
+        }
+
+        .badge-unknown {
+            background: #6c757d;
+            color: #fff;
+        }
+
+        .override-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #4facfe;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4facfe;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            margin-top: 30px;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .summary-card h3 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .summary-card p {
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+
+        .processor-info {
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.1) 0%, rgba(0, 242, 254, 0.1) 100%);
+            border: 2px solid #4facfe;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .processor-info h3 {
+            color: #4facfe;
+            margin-bottom: 5px;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #4facfe;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid #28a745;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 5px solid #dc3545;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 5px solid #17a2b8;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .file-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .file-info p {
+            color: #555;
+            margin: 5px 0;
+        }
+
+        .file-info strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 DIGIT Multi-LOB Processor</h1>
+            <p>Universal insurance data processor for all vehicle types and segments</p>
+            
+            <div class="lob-badges">
+                <div class="lob-badge">🏍️ Two Wheeler</div>
+                <div class="lob-badge">🚕 Taxi</div>
+                <div class="lob-badge">🚗 4W SATP</div>
+                <div class="lob-badge">🚌 Bus</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Step 1: Upload File -->
+            <div class="step" id="step1">
+                <h2>📁 Step 1: Upload Excel File</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📤</div>
+                    <h3>Drag & Drop your Excel file here</h3>
+                    <p>or</p>
+                    <button class="btn" onclick="document.getElementById('fileInput').click()">Browse Files</button>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls">
+                    <p style="margin-top: 15px; color: #666;">Supported formats: .xlsx, .xls</p>
+                </div>
+                <div id="fileInfo" class="file-info hidden"></div>
+            </div>
+
+            <!-- Step 2: Select Worksheet -->
+            <div class="step hidden" id="step2">
+                <h2>📋 Step 2: Select Worksheet</h2>
+                <p style="margin-bottom: 15px; color: #666;">Click on a worksheet to process (automatically detected type):</p>
+                <div class="sheet-list" id="sheetList"></div>
+            </div>
+
+            <!-- Step 3: Override Options (Optional) -->
+            <div class="step hidden" id="step3">
+                <h2>⚙️ Step 3: Override Options (Optional)</h2>
+                <div class="override-section">
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="enableOverride">
+                        <label for="enableOverride">Enable override options (usually not needed)</label>
+                    </div>
+                    <div id="overrideFields" class="hidden">
+                        <div class="form-group">
+                            <label for="overrideLob">LOB (Line of Business)</label>
+                            <select id="overrideLob">
+                                <option value="">-- Auto Detect --</option>
+                                <option value="TW">TW (Two Wheeler)</option>
+                                <option value="TAXI">TAXI</option>
+                                <option value="PVT CAR">PVT CAR</option>
+                                <option value="BUS">BUS</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="overrideSegment">Segment</label>
+                            <input type="text" id="overrideSegment" placeholder="Leave blank for auto-detect">
+                        </div>
+                        <div class="form-group">
+                            <label for="overridePolicyType">Policy Type</label>
+                            <select id="overridePolicyType">
+                                <option value="">-- Auto Detect --</option>
+                                <option value="Comp">Comp (Comprehensive)</option>
+                                <option value="TP">TP (Third Party)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-buttons">
+                    <button class="btn" id="processBtn" onclick="processSheet()">🚀 Process Worksheet</button>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div class="loading hidden" id="loadingDiv">
+                <div class="spinner"></div>
+                <p>Processing worksheet... Detecting type and extracting data.</p>
+            </div>
+
+            <!-- Alerts -->
+            <div id="alertContainer"></div>
+
+            <!-- Results -->
+            <div class="results hidden" id="resultsDiv">
+                <h2>📊 Processing Results</h2>
+                <div id="processorInfo" class="processor-info"></div>
+                <div class="summary-cards" id="summaryCards"></div>
+                <div class="action-buttons">
+                    <button class="btn" onclick="exportToExcel()">📥 Download Excel</button>
+                    <button class="btn btn-secondary" onclick="resetForm()">🔄 Process Another File</button>
+                </div>
+                <div class="table-container" style="margin-top: 30px;">
+                    <table id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>State</th>
+                                <th>Location/Cluster</th>
+                                <th>Original Segment</th>
+                                <th>Mapped Segment</th>
+                                <th>LOB</th>
+                                <th>Policy Type</th>
+                                <th>Payin (CD2)</th>
+                                <th>Payin Category</th>
+                                <th>Calculated Payout</th>
+                                <th>Formula Used</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+        
+        // Global state
+        let uploadedFileId = null;
+        let selectedSheet = null;
+        let processedRecords = [];
+
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+        const sheetList = document.getElementById('sheetList');
+        const enableOverride = document.getElementById('enableOverride');
+        const overrideFields = document.getElementById('overrideFields');
+        const loadingDiv = document.getElementById('loadingDiv');
+        const resultsDiv = document.getElementById('resultsDiv');
+        const alertContainer = document.getElementById('alertContainer');
+
+        // Initialize
+        setupEventListeners();
+
+        function setupEventListeners() {
+            fileInput.addEventListener('change', handleFileSelect);
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+
+            enableOverride.addEventListener('change', () => {
+                if (enableOverride.checked) {
+                    overrideFields.classList.remove('hidden');
+                } else {
+                    overrideFields.classList.add('hidden');
+                }
+            });
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        async function handleFile(file) {
+            if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+                showAlert('Please upload an Excel file (.xlsx or .xls)', 'error');
+                return;
+            }
+
+            showLoading(true);
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Upload failed');
+                }
+
+                const data = await response.json();
+                uploadedFileId = data.file_id;
+
+                fileInfo.innerHTML = `
+                    <p><strong>File:</strong> ${data.filename}</p>
+                    <p><strong>Worksheets Found:</strong> ${data.sheets.length}</p>
+                `;
+                fileInfo.classList.remove('hidden');
+
+                displaySheets(data.sheet_info);
+
+                showAlert(data.message, 'success');
+                showLoading(false);
+
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+                showLoading(false);
+            }
+        }
+
+        function displaySheets(sheetInfo) {
+            sheetList.innerHTML = '';
+            
+            sheetInfo.forEach(info => {
+                const div = document.createElement('div');
+                div.className = 'sheet-item';
+                
+                const typeNames = {
+                    'bus': 'Bus (School + Staff)',
+                    'tw': 'Two Wheeler',
+                    'taxi': 'Taxi / Electric',
+                    '4w_satp': '4W SATP',
+                    'unknown': 'Unknown Type'
+                };
+                
+                div.innerHTML = `
+                    <h3>${info.icon} ${info.name}</h3>
+                    <span class="sheet-type-badge badge-${info.type}">${typeNames[info.type]}</span>
+                `;
+                div.onclick = () => selectSheet(info.name, div, typeNames[info.type]);
+                sheetList.appendChild(div);
+            });
+
+            step2.classList.remove('hidden');
+        }
+
+        function selectSheet(sheet, element, typeName) {
+            document.querySelectorAll('.sheet-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+
+            element.classList.add('selected');
+            selectedSheet = sheet;
+
+            step3.classList.remove('hidden');
+            
+            showAlert(`Selected: ${sheet} (${typeName})`, 'info');
+        }
+
+        async function processSheet() {
+            if (!uploadedFileId || !selectedSheet) {
+                showAlert('Please upload a file and select a worksheet first', 'error');
+                return;
+            }
+
+            showLoading(true);
+            resultsDiv.classList.add('hidden');
+
+            const overrideEnabled = enableOverride.checked;
+            const overrideLob = overrideEnabled ? document.getElementById('overrideLob').value : null;
+            const overrideSegment = overrideEnabled ? document.getElementById('overrideSegment').value : null;
+            const overridePolicyType = overrideEnabled ? document.getElementById('overridePolicyType').value : null;
+
+            try {
+                const params = new URLSearchParams({
+                    file_id: uploadedFileId,
+                    sheet_name: selectedSheet,
+                    override_enabled: overrideEnabled
+                });
+
+                if (overrideLob) params.append('override_lob', overrideLob);
+                if (overrideSegment) params.append('override_segment', overrideSegment);
+                if (overridePolicyType) params.append('override_policy_type', overridePolicyType);
+
+                const response = await fetch(`${API_BASE_URL}/process?${params}`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Processing failed');
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    showAlert(data.message, 'error');
+                    showLoading(false);
+                    return;
+                }
+
+                processedRecords = data.records;
+                displayResults(data);
+                showAlert(data.message, 'success');
+                showLoading(false);
+
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+                showLoading(false);
+            }
+        }
+
+        function displayResults(data) {
+            resultsDiv.classList.remove('hidden');
+
+            // Show processor info
+            const processorInfo = document.getElementById('processorInfo');
+            processorInfo.innerHTML = `
+                <h3>✅ Processor Used</h3>
+                <p>${data.summary.processor}</p>
+            `;
+
+            // Display summary cards
+            const summaryCards = document.getElementById('summaryCards');
+            const lobsHtml = Object.entries(data.summary.lobs || {})
+                .map(([lob, count]) => `${lob}: ${count}`)
+                .join(', ') || 'N/A';
+            
+            summaryCards.innerHTML = `
+                <div class="summary-card">
+                    <h3>${data.count}</h3>
+                    <p>Total Records</p>
+                </div>
+                <div class="summary-card">
+                    <h3>${Object.keys(data.summary.states).length}</h3>
+                    <p>States</p>
+                </div>
+                <div class="summary-card">
+                    <h3>${data.summary.average_payin}%</h3>
+                    <p>Avg Payin</p>
+                </div>
+                <div class="summary-card">
+                    <h3>${data.summary.average_payout}%</h3>
+                    <p>Avg Payout</p>
+                </div>
+                <div class="summary-card">
+                    <h3>${Object.keys(data.summary.policies).length}</h3>
+                    <p>Policy Types</p>
+                </div>
+            `;
+
+            // Display table
+            const tbody = document.getElementById('resultsBody');
+            tbody.innerHTML = '';
+
+            data.records.forEach(record => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${record.State}</td>
+                    <td>${record['Location/Cluster']}</td>
+                    <td>${record['Original Segment']}</td>
+                    <td>${record['Mapped Segment']}</td>
+                    <td>${record.LOB}</td>
+                    <td>${record['Policy Type']}</td>
+                    <td>${record['Payin (CD2)']}</td>
+                    <td>${record['Payin Category']}</td>
+                    <td>${record['Calculated Payout']}</td>
+                    <td>${record['Formula Used']}</td>
+                `;
+            });
+
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function exportToExcel() {
+            if (!uploadedFileId || !selectedSheet || processedRecords.length === 0) {
+                showAlert('No data to export', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/export?file_id=${uploadedFileId}&sheet_name=${selectedSheet}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(processedRecords)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Export failed');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `MultiLOB_Processed_${selectedSheet}_${new Date().getTime()}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                showAlert('File downloaded successfully!', 'success');
+
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function resetForm() {
+            uploadedFileId = null;
+            selectedSheet = null;
+            processedRecords = [];
+            
+            fileInput.value = '';
+            fileInfo.classList.add('hidden');
+            step2.classList.add('hidden');
+            step3.classList.add('hidden');
+            resultsDiv.classList.add('hidden');
+            
+            enableOverride.checked = false;
+            overrideFields.classList.add('hidden');
+            
+            document.getElementById('overrideLob').value = '';
+            document.getElementById('overrideSegment').value = '';
+            document.getElementById('overridePolicyType').value = '';
+            
+            clearAlerts();
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showLoading(show) {
+            if (show) {
+                loadingDiv.classList.remove('hidden');
+            } else {
+                loadingDiv.classList.add('hidden');
+            }
+        }
+
+        function showAlert(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            alertContainer.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 5000);
+        }
+
+        function clearAlerts() {
+            alertContainer.innerHTML = '';
+        }
+    </script>
+</body>
+</html>
