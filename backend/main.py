@@ -460,7 +460,7 @@ app = FastAPI(title="DIGIT Multi-LOB Processor API")
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://digit-excel-bus.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
